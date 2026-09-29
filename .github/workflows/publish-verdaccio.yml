@@ -1,0 +1,33 @@
+name: Publish to Verdaccio
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          registry-url: 'https://verdaccio.dev.infomaniak.ch'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # npm publish triggers prepack (build:lib + test). Publishing is skipped
+      # when the version is already on Verdaccio, so pushes stay green.
+      - name: Publish when the version is new
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.VERDACCIO_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "@infomaniak/fflate@$VERSION" version >/dev/null 2>&1; then
+            echo "@infomaniak/fflate@$VERSION already on Verdaccio, skipping"
+          else
+            npm publish
+          fi
