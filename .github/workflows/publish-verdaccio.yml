@@ -14,20 +14,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26
-          registry-url: 'https://verdaccio.dev.infomaniak.ch'
 
       - name: Install dependencies
         run: npm ci
 
-      # npm publish triggers prepack (build:lib + test). Publishing is skipped
-      # when the version is already on Verdaccio, so pushes stay green.
       - name: Publish when the version is new
         env:
           NODE_AUTH_TOKEN: ${{ secrets.VERDACCIO_TOKEN }}
+          VERDACCIO_URL: ${{ secrets.VERDACCIO_URL }}
         run: |
+          HOST=$(echo "$VERDACCIO_URL" | sed -E 's#^https?://##')
+          echo "//$HOST/:_authToken=$NODE_AUTH_TOKEN" >> ~/.npmrc
           VERSION=$(node -p "require('./package.json').version")
-          if npm view "@infomaniak/fflate@$VERSION" version >/dev/null 2>&1; then
+          if npm view "@infomaniak/fflate@$VERSION" version --registry "$VERDACCIO_URL" >/dev/null 2>&1; then
             echo "@infomaniak/fflate@$VERSION already on Verdaccio, skipping"
           else
-            npm publish
+            npm publish --registry "$VERDACCIO_URL"
           fi
